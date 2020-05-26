@@ -128,7 +128,9 @@
 
 (defmulti update-root-id (fn [root id] id))
 
-(defn- update-root [root & ks]
+(defn- update-root
+  "Updates root in ks. Returns root"
+  [root & ks]
   (dorun (map #(update-root-id root %) ks))
   root)
 
@@ -169,15 +171,27 @@
       (.getSelectedFile chooser))))
 
 (defmethod update-root-id :src [root _]  
-  (sset! root [:src :text] (.getName (:src @state)))
-  root)
+  (sset! root [:src :text] (.getName (:src @state))))
+
+(defmethod update-root-id :canvas [root _]
+  (let [{:keys [src page]} @state]
+    (when src
+      (let [bimage (convert-to-image src page)
+            paint (fn [c g]
+                    (.drawImage g
+                                (resize-image bimage
+                                              (width c)
+                                              (height c))
+                                0 0 nil))]
+        (sset! root [:canvas :paint] paint)))))
 
 ;;(-> @state :src (.getName))
 
 (defn- add-behavior-button [root]
   (->> {:load (fn [e]
                 (swap! state assoc :src (load-file-user root))
-                (update-root root :src))}
+                (update-root root :src :canvas))
+        :close (fn [e] (dispose! root))}
        (map (fn [[k v]]
               (listen (sget root k) :mouse-clicked v)))
        dorun)
@@ -187,7 +201,10 @@
   (sset-class! root [:text :font] f))
 
 (defn run []
+  (reset-state!)
   (-> (new-frame)
       add-behavior-button
       (set-font (font :size 30))
       show!))
+
+;;(run)
