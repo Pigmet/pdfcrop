@@ -139,13 +139,16 @@
 ;; frame
 
 (defn- ui-part []
-  (let [part1  (horizontal-panel
+  (let [bs (->> [[:crop "crop"][:close "close"] ]
+                (map (fn [[id s]] (button :text s :id id :class :text))))
+
+        part1  (horizontal-panel
                 :items [(button :text "load" :id :load :class :text)
                         (menubar
                          :items
                          [(menu :text "menu" :class :text
-                                :items [(button :text "close" :id :close
-                                                :class :text)])])])
+                                :items bs)])])
+
         part2 (horizontal-panel
                :items [(label :text "File: " :class :text)
                        (label :id :src :class :text)])]
@@ -188,7 +191,7 @@
   (sset! root [:src :text] (.getName (:src @state))))
 
 (defmethod update-root-id :canvas [root _]
-  (let [{:keys [src page]} @state]
+  (let [{:keys [src page start end]} @state]
     (when src
       (let [bimage (convert-to-image src page)
             paint (fn [c g]
@@ -196,8 +199,17 @@
                                 (resize-image bimage
                                               (width c)
                                               (height c))
-                                0 0 nil))]
+                                0 0 nil)
+                    (draw g
+                          (apply rect
+                                 (concat start (map - end start)) )
+                          (style :foreground (color "black")
+                                 :stroke 3)))]
         (sset! root [:canvas :paint] paint)))))
+
+;; crop
+
+(defn crop-pdf [root])
 
 ;;(-> @state :src (.getName))
 
@@ -218,11 +230,18 @@
   root)
 
 (defn- add-draw-action [root]
-  (let [get-pos (fn [e] [(.getX e)(.getY e)])
-        a (atom {:start [0 0] :end [0 0]})]
-    (listen (sget root :canvas )
+  (let [get-pos (fn [e] [(.getX e)(.getY e)])]
+    (listen (sget root :canvas)
             :mouse-pressed
-            (fn [e]))))
+            (fn [e] (swap! state
+                           assoc
+                           :start (get-pos e)
+                           :end (get-pos e)))
+            :mouse-dragged
+            (fn [e]
+              (swap! state assoc :end (get-pos e))
+              (update-root root :canvas))))
+  root)
 
 (defn- set-font [root f]
   (sset-class! root [:text :font] f))
@@ -231,7 +250,9 @@
   (reset-state!)
   (-> (new-frame)
       add-behavior-button
+      add-draw-action
       (set-font (font :size 30))
       show!))
 
 ;;(run)
+
