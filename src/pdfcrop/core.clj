@@ -255,7 +255,8 @@
             (fn [e] (swap! state
                            assoc
                            :start (get-pos e)
-                           :end (get-pos e)))
+                           :end (get-pos e))
+              (update-root root :canvas))
             :mouse-dragged
             (fn [e]
               (swap! state assoc :end (get-pos e))
