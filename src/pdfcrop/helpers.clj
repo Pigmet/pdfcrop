@@ -13,6 +13,8 @@
 (defn- get-extension [f]
   (re-find #"\.\w+" (str f)))
 
+;; FIXME: This is buggy ->  core.clj.tex 
+
 (defn- filename-sans-extension [f]
   (first (split (str f) #"\.\w+" )))
 

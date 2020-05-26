@@ -209,7 +209,26 @@
 
 ;; crop
 
-(defn crop-pdf [root])
+;;(file-data "src/core.clj.tex")
+
+(comment
+  (defn- get-dest-file-user [root]
+    (let [src (:src @state)
+          {parent :parent s :name ex :extension} (file-data src)
+          new-file-name (-> (put-str-filename src "-cropped")
+                            file-data
+                            :name
+                            io/file)
+          chooser (doto (new JFileChooser parent)
+                    (.setDialogTitle "save file")
+                    (.setSelectedFile new-file-name))]
+      (if (= (.showSaveDialog chooser root) JFileChooser/APPROVE_OPTION)
+        (str (.getSelectedFile chooser)))))
+
+  (defn crop-pdf [root])
+  )
+
+
 
 ;;(-> @state :src (.getName))
 
