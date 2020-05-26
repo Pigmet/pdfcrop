@@ -121,7 +121,9 @@
 
 (defn- reset-state! [] (reset! state state-init))
 
-(defn- state-ok? [{:keys [src page]}]
+(defn- state-ok?
+  "Returns true if page is in the range of the src file."
+  [{:keys [src page]}]
   (when src
     (let [{total-pages :page-number} (pdf-file-data src)]
       (<= 0 page (dec total-pages)))))
@@ -147,7 +149,16 @@
         part2 (horizontal-panel
                :items [(label :text "File: " :class :text)
                        (label :id :src :class :text)])]
+    
     (grid-panel :columns 1 :items [part1 part2])))
+
+(defn- page-buttons []
+  (grid-panel
+   :rows 1
+   :items
+   (->>[[:back "-"][:next "+"]]
+       (map (fn [[id s]]
+              (button :text s :id id :class :text))))))
 
 (defn- new-frame []
   (frame :width 500
@@ -155,7 +166,10 @@
          :title "crop pdf"
          :content (border-panel
                    :north (ui-part)
-                   :center (canvas :id :canvas))))
+                   :center
+                   (border-panel
+                    :center(canvas :id :canvas)
+                    :south (page-buttons)))))
 
 ;; load
 
@@ -191,11 +205,24 @@
   (->> {:load (fn [e]
                 (swap! state assoc :src (load-file-user root))
                 (update-root root :src :canvas))
-        :close (fn [e] (dispose! root))}
+        :close (fn [e] (dispose! root))
+        :next (fn [e]
+                (swap-when! state state-ok? update :page inc)
+                (update-root root :canvas))
+        :back (fn [e]
+                (swap-when! state state-ok? update :page dec)
+                (update-root root :canvas))}
        (map (fn [[k v]]
               (listen (sget root k) :mouse-clicked v)))
        dorun)
   root)
+
+(defn- add-draw-action [root]
+  (let [get-pos (fn [e] [(.getX e)(.getY e)])
+        a (atom {:start [0 0] :end [0 0]})]
+    (listen (sget root :canvas )
+            :mouse-pressed
+            (fn [e]))))
 
 (defn- set-font [root f]
   (sset-class! root [:text :font] f))
