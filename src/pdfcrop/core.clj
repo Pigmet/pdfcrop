@@ -20,8 +20,7 @@
 
 (defn -main
   "I don't do a whole lot ... yet."
-  [& args]
-  (run))
+  [& args])
 
 ;; TODO : fix bugs (the software throws exception while in use)
 
@@ -127,13 +126,26 @@
     (let [{total-pages :page-number} (pdf-file-data src)]
       (<= 0 page (dec total-pages)))))
 
+(defmulti update-root-id (fn [root id] id))
+
+(defn- update-root [root & ks]
+  (dorun (map #(update-root-id root %) ks))
+  root)
+
+;; frame
+
 (defn- ui-part []
-  (horizontal-panel
-   :items [(button :text "load" :id :load :class :text)
-           (menubar :items
-                    [(menu :text "menu" :class :text
-                           :items [(button :text "close" :id :close
-                                           :class :text)])])]))
+  (let [part1  (horizontal-panel
+                :items [(button :text "load" :id :load :class :text)
+                        (menubar
+                         :items
+                         [(menu :text "menu" :class :text
+                                :items [(button :text "close" :id :close
+                                                :class :text)])])])
+        part2 (horizontal-panel
+               :items [(label :text "File: " :class :text)
+                       (label :id :src :class :text)])]
+    (grid-panel :columns 1 :items [part1 part2])))
 
 (defn- new-frame []
   (frame :width 500
@@ -145,13 +157,37 @@
 
 ;; load
 
-(defn load-file []
-  ())
+(defn- load-file-user
+  "Returns the filename selected by the user."
+  [root]
+  ;; erase the file object from JFileChooser ctor when finished .
+  (let [chooser (doto (new JFileChooser (new File "resources") )
+                  (.setFileFilter (new-file-filter "pdf")))]
+    (when  (-> chooser
+               (.showOpenDialog root)
+               (= JFileChooser/APPROVE_OPTION))
+      (.getSelectedFile chooser))))
+
+(defmethod update-root-id :src [root _]  
+  (sset! root [:src :text] (.getName (:src @state)))
+  root)
+
+;;(-> @state :src (.getName))
+
+(defn- add-behavior-button [root]
+  (->> {:load (fn [e]
+                (swap! state assoc :src (load-file-user root))
+                (update-root root :src))}
+       (map (fn [[k v]]
+              (listen (sget root k) :mouse-clicked v)))
+       dorun)
+  root)
 
 (defn- set-font [root f]
   (sset-class! root [:text :font] f))
 
 (defn run []
   (-> (new-frame)
+      add-behavior-button
       (set-font (font :size 30))
       show!))
