@@ -34,7 +34,11 @@
   [^File f]
   (-> (PDDocument/load f) (.getNumberOfPages)))
 
-(defn- crop-pdf-impl [^File from ^File out lower-left upper-right]
+(defn crop-pdf-impl
+  "Crops from and save the result to out. They both should be
+  pdf files. lower-left and upper-right are 2d points that determine
+  the cropped area.  "
+  [^File from ^File out lower-left upper-right]
   (let [[lx ly] lower-left, [rx ry] upper-right
         n (get-num-pages from)]
     (with-open [doc (PDDocument/load from)]
@@ -42,15 +46,25 @@
         (doto (.getPage doc i)
           ;; ctor of PDRectangle -> lower-left, upper-right
           (.setCropBox (new PDRectangle lx ly rx ry))))
-      (.save doc (new File "resources/out.pdf")))))
+      (.save doc out))))
 
-(crop-pdf-impl (io/file from-file)
-               (io/file out-file)
-               [20 20]
-               [300 400])
+(defn crop-pdf-ratio-impl
+  "Like crop-pdf-impl, but lower-left and upper-right are
+  coordinates in ratio (from 0 to 1).
 
-(get-num-pages (io/file out-file))
+  ^File from -> file to crop
+  ^File out -> file to save the result"
+  [^File from ^File out lower-left upper-right]
+  (let [[_ _ w h] (get-bounding-coordinate (io/file from-file))]
+    (crop-pdf-impl from out
+                   (map * lower-left [w h])
+                   (map * upper-right [w h]))))
+
+(crop-pdf-ratio-impl
+ (io/file from-file)
+ (io/file out-file)
+ [0.4 0.5]
+ [0.8 0.8])
 
 (sh "open" out-file)
-
 
