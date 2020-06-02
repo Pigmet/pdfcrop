@@ -60,6 +60,7 @@
 (def state-init {:src nil
                  :dest :nil
                  :page 0
+                 :canvas-size [500 500]
                  :start [0 0]
                  :end [0 0]})
 
