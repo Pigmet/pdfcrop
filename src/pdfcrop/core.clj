@@ -43,7 +43,9 @@
   {:height (.getHeight x)
    :width (.getWidth x)})
 
-(defn- new-file-filter [extension]
+(defn- new-file-filter
+  "Returns new JFileChooser that accept only files with extension."
+  [extension]
   (proxy [FileFilter] []
     (accept [file]
       (or (.isDirectory file)
@@ -157,6 +159,17 @@
 
 ;; crop 
 
+(defn- abs [x] (Math/abs (float x)))
+
+(defn- valid-rect? [start end]
+  (pos? (abs (apply * (map - start end)))))
+
+(defn- can-crop? [{:keys [start end] :as the-state}]
+  (and (state-ok? the-state) (valid-rect? start end)))
+
+(defn- crop-action [root])
+
+;; add behavior
 (defn- add-behavior-button [root]
   (->> {:load (fn [e]
                 (swap! state assoc :src (load-file-user root))
