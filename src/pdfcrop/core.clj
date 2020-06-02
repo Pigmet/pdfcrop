@@ -12,7 +12,7 @@
    (javax.swing JFileChooser)
    (javax.swing.filechooser FileFilter FileNameExtensionFilter)
    (java.awt.image BufferedImage)
-   (java.awt Canvas)
+   (java.awt Canvas Dimension)
    (org.apache.pdfbox.pdmodel PDDocument PDPage)
    (org.apache.pdfbox.rendering PDFRenderer ImageType)
    (org.apache.pdfbox.pdmodel.common PDRectangle)))
@@ -122,6 +122,7 @@
                    :center
                    (border-panel
                     :center(canvas :id :canvas)
+                    :east (label :id :info :class :text)
                     :south (page-buttons)))))
 
 ;; load
@@ -137,15 +138,22 @@
                (= JFileChooser/APPROVE_OPTION))
       (str (.getSelectedFile chooser)))))
 
+(defmethod update-root-id :info [root _]
+  (let [{:keys [start end]} @state]
+    (sset! root [:info :text]
+           (format "%s %s" start end))))
+
 (defmethod update-root-id :src [root _]  
   (sset! root [:src :text]
          (-> @state :src io/file (.getName))))
 
 (defmethod update-root-id :canvas [root _]
-  (let [{:keys [src page start end]} @state]
+  (let [{:keys [src page start end canvas-size]} @state
+        [w h] canvas-size]
     (when src
       (let [bimage (convert-to-image src page)
             paint (fn [c g]
+                    (.setSize c (new Dimension w h))
                     (.drawImage g
                                 (resize-image bimage
                                               (width c)
@@ -171,14 +179,21 @@
 (defn- put-cropped-filename [s]
   (str (subs s 0 (- (count s) (count ".pdf"))) "-cropped" ".pdf"))
 
-(def sample-file "resources/crop-test.pdf")
-
-(pdf-file-data (io/file sample-file))
+(defn- get-rect-coordinates [start end {[w h] :canvas-size}]
+  (let [flip-y (fn [[x y]] [x (- h y)])
+        start (flip-y start)
+        end (flip-y end)]
+    [(apply min (map first [start end]))
+     (apply min (map second [start end]))
+     (apply max (map first [start end]))
+     (apply max (map second [start end]))]))
 
 (defn- crop-action [root]
   (if-not (can-crop? @state)
     (alert "cannnot crop")
-    (let [{:keys [src start end]} @state
+    (let [{:keys [src start end canvas-size]} @state
+          [w h] canvas-size
+          [lx ly rx ry] (get-rect-coordinates start end @state)
           src-file (io/file src)
           parent (.getParent src-file)
           new-file-name (put-cropped-filename src)
@@ -187,13 +202,12 @@
                     (.setDialogTitle "save file")
                     (.setSelectedFile new-file))]
       (if (= (.showSaveDialog chooser root) JFileChooser/APPROVE_OPTION)
-        (let [selected-file  (.getSelectedFile chooser)
-              {:keys [width height]} (pdf-file-data src-file)]
+        (let [selected-file  (.getSelectedFile chooser)]
           (crop-pdf-ratio-impl
            src-file
            selected-file
-           (map / start [width height])
-           (map / end [width height]))
+           (map / [lx ly] [w h])
+           (map / [rx ry] [w h]))
           (alert "cropped pdf"))))))
 
 
@@ -223,11 +237,11 @@
                            assoc
                            :start (get-pos e)
                            :end (get-pos e))
-              (update-root root :canvas))
+              (update-root root :canvas :info))
             :mouse-dragged
             (fn [e]
               (swap! state assoc :end (get-pos e))
-              (update-root root :canvas))))
+              (update-root root :canvas :info))))
   root)
 
 (defn- abs [x] (Math/abs (float x)))
