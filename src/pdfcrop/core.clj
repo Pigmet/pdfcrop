@@ -55,7 +55,7 @@
 
 ;; src and dest are strings (not File objects)
 (def state-init {:src nil
-                 :dest :nil
+                 :dest nil
                  :page 0
                  :canvas-size [500 500]
                  :start [0 0]
@@ -86,7 +86,7 @@
 ;; frame
 
 (defn- ui-part []
-  (let [bs (->> [[:crop "crop"][:close "close"] [:view "view"]]
+  (let [bs (->> [[:crop "crop"][:view "view"][:close "close"]]
                 (map (fn [[id s]] (button :text s :id id :class :text))))
 
         part1  (horizontal-panel
@@ -214,6 +214,10 @@
                 (swap! state assoc :src (load-file-user root))
                 (update-root root :src :canvas))
         :crop (fn [e] (crop-action root))
+        :view (fn [e]
+                (if-let [dest (:dest @state)]
+                  (sh "open" dest)
+                  (alert "crop a pdf first.")))
         :close (fn [e] (dispose! root))
         :next (fn [e]
                 (swap-when! state state-ok? update :page inc)
