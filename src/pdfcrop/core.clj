@@ -17,9 +17,6 @@
    (org.apache.pdfbox.rendering PDFRenderer ImageType)
    (org.apache.pdfbox.pdmodel.common PDRectangle)))
 
-(defn -main
-  "I don't do a whole lot ... yet."
-  [& args])
 
 (defn convert-to-image
   "Takes filepath and page number and returns BufferedImage."
@@ -261,4 +258,9 @@
       add-draw-action
       (set-font (font :size 30))
       show!))
+
+(defn -main
+  [& args]
+  (run))
+
 
