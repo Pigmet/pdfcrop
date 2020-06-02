@@ -10,8 +10,7 @@
   (:import
    (java.io File)
    (javax.swing JFileChooser)
-   (javax.swing.filechooser FileFilter)
-   (javax.swing.filechooser FileNameExtensionFilter)
+   (javax.swing.filechooser FileFilter FileNameExtensionFilter)
    (java.awt.image BufferedImage)
    (java.awt Canvas)
    (org.apache.pdfbox.pdmodel PDDocument PDPage)
@@ -159,7 +158,7 @@
   (grid-panel
    :rows 1
    :items
-   (->>[[:back "-"][:next "+"]]
+   (->>[[:back "back"][:next "next"]]
        (map (fn [[id s]]
               (button :text s :id id :class :text))))))
 
@@ -262,6 +261,18 @@
               (swap! state assoc :end (get-pos e))
               (update-root root :canvas))))
   root)
+
+(defn- abs [x] (Math/abs (float x)))
+
+(defn- rectangle-ok?
+  "The rectangle [start end] has positive area?"
+  [{:keys [start end]}]
+  (pos? (abs (apply * (map - start end)))))
+
+
+
+
+
 
 (defn- set-font [root f]
   (sset-class! root [:text :font] f))
