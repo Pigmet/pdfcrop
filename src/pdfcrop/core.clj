@@ -17,6 +17,7 @@
    (org.apache.pdfbox.rendering PDFRenderer ImageType)
    (org.apache.pdfbox.pdmodel.common PDRectangle)))
 
+;;FIXME: Check scaling. 
 
 (defn convert-to-image
   "Takes filepath and page number and returns BufferedImage."

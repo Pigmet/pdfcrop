@@ -16,10 +16,6 @@
    (org.apache.pdfbox.rendering PDFRenderer ImageType)
    (org.apache.pdfbox.pdmodel.common PDRectangle)))
 
-(def from-file "resources/crop-test.pdf")
-
-(def out-file "resources/out.pdf")
-
 (defn get-bounding-coordinate
   [^File f]
   (let [box
@@ -62,7 +58,7 @@
   ^File from -> file to crop
   ^File out -> file to save the result"
   [^File from ^File out lower-left upper-right]
-  (let [[_ _ w h] (get-bounding-coordinate (io/file from-file))]
+  (let [[_ _ w h] (get-bounding-coordinate (io/file from))]
     (crop-pdf-impl from out
                    (map * lower-left [w h])
                    (map * upper-right [w h]))))
