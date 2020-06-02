@@ -1,4 +1,4 @@
-(ns pdfcrop.temp
+(ns pdfcrop.java
   (:require 
    [swinghelp.core :refer [sset! sset-class! sget]]
    [clojure.string :refer [join]]
@@ -59,12 +59,3 @@
     (crop-pdf-impl from out
                    (map * lower-left [w h])
                    (map * upper-right [w h]))))
-
-(crop-pdf-ratio-impl
- (io/file from-file)
- (io/file out-file)
- [0.4 0.5]
- [0.8 0.8])
-
-(sh "open" out-file)
-
