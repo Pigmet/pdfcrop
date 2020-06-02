@@ -167,13 +167,41 @@
 (defn- can-crop? [{:keys [start end] :as the-state}]
   (and (state-ok? the-state) (valid-rect? start end)))
 
-(defn- crop-action [root])
+(defn- put-cropped-filename [s]
+  (str (subs s 0 (- (count s) (count ".pdf"))) "-cropped" ".pdf"))
+
+(def sample-file "resources/crop-test.pdf")
+
+(pdf-file-data (io/file sample-file))
+
+(defn- crop-action [root]
+  (if-not (can-crop? @state)
+    (alert "cannnot crop")
+    (let [{:keys [src start end]} @state
+          src-file (io/file src)
+          parent (.getParent src-file)
+          new-file-name (put-cropped-filename src)
+          new-file (io/file new-file-name)
+          chooser (doto (new JFileChooser parent)
+                    (.setDialogTitle "save file")
+                    (.setSelectedFile new-file))]
+      (if (= (.showSaveDialog chooser root) JFileChooser/APPROVE_OPTION)
+        (let [selected-file  (.getSelectedFile chooser)
+              {:keys [width height]} (pdf-file-data src-file)]
+          (crop-pdf-ratio-impl
+           src-file
+           selected-file
+           (map / start [width height])
+           (map / end [width height]))
+          (alert "cropped pdf"))))))
+
 
 ;; add behavior
 (defn- add-behavior-button [root]
   (->> {:load (fn [e]
                 (swap! state assoc :src (load-file-user root))
                 (update-root root :src :canvas))
+        :crop (fn [e] (crop-action root))
         :close (fn [e] (dispose! root))
         :next (fn [e]
                 (swap-when! state state-ok? update :page inc)
@@ -220,5 +248,5 @@
       show!))
 
 ;;(run)
-
+;;(sh "open" "resources/crop-test-cropped.pdf")
 
