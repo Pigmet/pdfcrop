@@ -86,7 +86,7 @@
 ;; frame
 
 (defn- ui-part []
-  (let [bs (->> [[:crop "crop"][:close "close"] ]
+  (let [bs (->> [[:crop "crop"][:close "close"] [:view "view"]]
                 (map (fn [[id s]] (button :text s :id id :class :text))))
 
         part1  (horizontal-panel
@@ -205,8 +205,8 @@
            selected-file
            (map / [lx ly] [w h])
            (map / [rx ry] [w h]))
+          (swap! state assoc :dest (str selected-file))
           (alert "cropped pdf"))))))
-
 
 ;; add behavior
 (defn- add-behavior-button [root]
