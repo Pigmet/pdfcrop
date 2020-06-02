@@ -131,7 +131,7 @@
   "Returns the filename (string) selected by the user."
   [root]
   ;; erase the file object from JFileChooser ctor when finished .
-  (let [chooser (doto (new JFileChooser (new File "resources") )
+  (let [chooser (doto (new JFileChooser )
                   (.setFileFilter (new-file-filter "pdf")))]
     (when  (-> chooser
                (.showOpenDialog root)
@@ -261,7 +261,4 @@
       add-draw-action
       (set-font (font :size 30))
       show!))
-
-;;(run)
-;;(sh "open" "resources/crop-test-cropped.pdf")
 
