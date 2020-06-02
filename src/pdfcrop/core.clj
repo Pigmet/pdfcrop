@@ -269,11 +269,6 @@
   [{:keys [start end]}]
   (pos? (abs (apply * (map - start end)))))
 
-
-
-
-
-
 (defn- set-font [root f]
   (sset-class! root [:text :font] f))
 
