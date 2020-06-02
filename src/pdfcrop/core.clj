@@ -17,7 +17,7 @@
    (org.apache.pdfbox.rendering PDFRenderer ImageType)
    (org.apache.pdfbox.pdmodel.common PDRectangle)))
 
-;;FIXME: Check scaling. 
+;;FIXME: Check scaling. (use original size of the src pdf, not canvas-size?)
 
 (defn convert-to-image
   "Takes filepath and page number and returns BufferedImage."
@@ -129,7 +129,7 @@
   "Returns the filename (string) selected by the user."
   [root]
   ;; erase the file object from JFileChooser ctor when finished .
-  (let [chooser (doto (new JFileChooser )
+  (let [chooser (doto (new JFileChooser (io/file "resources") )
                   (.setFileFilter (new-file-filter "pdf")))]
     (when  (-> chooser
                (.showOpenDialog root)
@@ -146,17 +146,13 @@
          (-> @state :src io/file (.getName))))
 
 (defmethod update-root-id :canvas [root _]
-  (let [{:keys [src page start end canvas-size]} @state
-        [w h] canvas-size]
+  (let [{:keys [src page start end]} @state]
     (when src
       (let [bimage (convert-to-image src page)
+            {w :width h :height} (pdf-file-data (io/file src))
             paint (fn [c g]
                     (.setSize c (new Dimension w h))
-                    (.drawImage g
-                                (resize-image bimage
-                                              (width c)
-                                              (height c))
-                                0 0 nil)
+                    (.drawImage g bimage 0 0 nil)
                     (draw g
                           (apply rect
                                  (concat start (map - end start)) )
@@ -268,4 +264,8 @@
   [& args]
   (run))
 
+;; demo
 
+(def file-path "/Users/naka/Documents/work/clojure/applications/pdfcrop/resources/The_Art_Of_War.pdf")
+
+(-> file-path io/file pdf-file-data)
