@@ -7,8 +7,9 @@
   "Swaps the value of a if the result satisfies pred, or returns nil."
   [a pred f & args]
   (let [new-val (apply f @a args)]
-    (when (pred new-val)
-      (reset! a new-val))))
+    (if (pred new-val)
+      (reset! a new-val)
+      @a)))
 
 (defn- get-extension [f]
   (re-find #"\.\w+" (str f)))

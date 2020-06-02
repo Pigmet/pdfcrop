@@ -34,6 +34,13 @@
   [^File f]
   (-> (PDDocument/load f) (.getNumberOfPages)))
 
+(defn pdf-file-data
+  "Takes pdf file (File object), returns its data in a map with
+  keys :width :height :pages."
+  [^File f]
+  (let [[_ _ w h ] (get-bounding-coordinate f)]
+    {:width w :height h :pages (get-num-pages f)}))
+
 (defn crop-pdf-impl
   "Crops from and save the result to out. They both should be
   pdf files. lower-left and upper-right are 2d points that determine

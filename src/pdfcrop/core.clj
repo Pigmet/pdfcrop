@@ -1,11 +1,11 @@
 (ns pdfcrop.core
   (:gen-class)
-  (:require [texdata.core :refer [tex]]
-            [swinghelp.core :refer [sset! sset-class! sget]]
-            [clojure.string :refer [join]]
-            [clojure.java.io :as io]
-            [clojure.java.shell :refer [sh with-sh-dir]]
-            [pdfcrop.helpers :refer [swap-when! file-data]])
+  (:require 
+   [swinghelp.core :refer [sset! sset-class! sget]]
+   [clojure.java.io :as io]
+   [clojure.java.shell :refer [sh with-sh-dir]]
+   [pdfcrop.helpers :refer [swap-when! file-data]]
+   [pdfcrop.java :refer [crop-pdf-ratio-impl pdf-file-data]])
   (:use [seesaw core font color graphics])
   (:import
    (java.io File)
@@ -21,41 +21,6 @@
   "I don't do a whole lot ... yet."
   [& args])
 
-;; TODO : fix bugs (the software throws exception while in use)
-
-(defn- crop-pdf-impl
-  [src dest page-num [x1 y1] [x2 y2]]
-  (with-open [doc (PDDocument/load (io/file src))]
-    (let [page (.getPage doc page-num)]
-      (.setCropBox page (new PDRectangle x1 y1 (- x2 x1) (- y2 y1)))
-      (.save doc (io/file dest)))))
-
-(defn- pdf-file-data [f]
-  (with-open [doc (PDDocument/load (io/file f))]
-    {:page-number (.getNumberOfPages doc )}))
-
-(defn- get-pdf-page [f n]
-  (with-open [doc (PDDocument/load (io/file f))]
-    (.getPage doc n)))
-
-(defn get-crop-box [page]
-  (.getCropBox page))
-
-(defn- cropbox-data
-  ([path] (cropbox-data path 0))
-  ([path n]
-   (let [box (-> path (get-pdf-page n) get-crop-box)]
-     {:width (.getWidth box)
-      :height (.getHeight box)})))
-
-(defn- rectangle-data [^PDRectangle x]
-  {:height (.getHeight x)
-   :width (.getWidth x)
-   :lower-left-x (.getLowerLeftX x)
-   :lower-left-y (.getLowerLeftY x)
-   :upper-right-x (.getUpperRightX x)
-   :upper-right-y (.getUpperRightY x)})
-
 (defn convert-to-image
   "Takes filepath and page number and returns BufferedImage."
   ([src n] (convert-to-image src n 300))
@@ -65,7 +30,10 @@
        (.renderImageWithDPI renderer n dpi ImageType/RGB)))))
 
 (defn- resize-image [im new-width new-height]
-  (let [temp (.getScaledInstance im new-width new-height BufferedImage/SCALE_SMOOTH)
+  (let [temp (.getScaledInstance im
+                                 new-width
+                                 new-height
+                                 BufferedImage/SCALE_SMOOTH)
         ret (buffered-image new-width new-height)
         g (.createGraphics ret)]
     (.drawImage g temp 0 0 nil)
@@ -74,27 +42,6 @@
 (defn bimage-data [^BufferedImage x]
   {:height (.getHeight x)
    :width (.getWidth x)})
-
-(defn- crop-pdf-ratio-coll-page
-  "Start and end are vectors signifying the cropping area in percentage."
-  [src dest from-page to-page start end]  
-  (let [{w :width h :height } (cropbox-data src)
-        invert (fn [[x y]] [x ( - 1 y)])
-        [start end] (map invert [start end])
-        start (map * start [w h])
-        end (map * end [ w h])
-        new-rect (fn [x y width height] (new PDRectangle x y width height))
-        rect (apply new-rect (concat start (map - end start)))]
-    (with-open [doc (PDDocument/load (io/file src))]
-      (dorun
-       (map
-        #(.setCropBox (.getPage doc %) rect)
-        (range from-page to-page)))
-      (.save doc (io/file dest)))))
-
-(defn- crop-pdf-ratio-all-page [src dest start end]
-  (let [n (:page-number (pdf-file-data src))]
-    (crop-pdf-ratio-coll-page src dest 0 n start end)))
 
 (defn- new-file-filter [extension]
   (proxy [FileFilter] []
@@ -107,6 +54,7 @@
 
 (def plot-data {:height 500 :width 500})
 
+;; src and dest are strings (not File objects)
 (def state-init {:src nil
                  :dest :nil
                  :page 0
@@ -124,7 +72,7 @@
   "Returns true if page is in the range of the src file."
   [{:keys [src page]}]
   (when src
-    (let [{total-pages :page-number} (pdf-file-data src)]
+    (let [{total-pages :pages} (pdf-file-data (io/file src))]
       (<= 0 page (dec total-pages)))))
 
 (defmulti update-root-id (fn [root id] id))
@@ -163,8 +111,8 @@
               (button :text s :id id :class :text))))))
 
 (defn- new-frame []
-  (frame :width 500
-         :height 500
+  (frame :width 800
+         :height 800
          :title "crop pdf"
          :content (border-panel
                    :north (ui-part)
@@ -176,7 +124,7 @@
 ;; load
 
 (defn- load-file-user
-  "Returns the filename selected by the user."
+  "Returns the filename (string) selected by the user."
   [root]
   ;; erase the file object from JFileChooser ctor when finished .
   (let [chooser (doto (new JFileChooser (new File "resources") )
@@ -184,10 +132,11 @@
     (when  (-> chooser
                (.showOpenDialog root)
                (= JFileChooser/APPROVE_OPTION))
-      (.getSelectedFile chooser))))
+      (str (.getSelectedFile chooser)))))
 
 (defmethod update-root-id :src [root _]  
-  (sset! root [:src :text] (.getName (:src @state))))
+  (sset! root [:src :text]
+         (-> @state :src io/file (.getName))))
 
 (defmethod update-root-id :canvas [root _]
   (let [{:keys [src page start end]} @state]
@@ -206,30 +155,7 @@
                                  :stroke 3)))]
         (sset! root [:canvas :paint] paint)))))
 
-;; crop
-
-;;(file-data "src/core.clj.tex")
-
-(comment
-  (defn- get-dest-file-user [root]
-    (let [src (:src @state)
-          {parent :parent s :name ex :extension} (file-data src)
-          new-file-name (-> (put-str-filename src "-cropped")
-                            file-data
-                            :name
-                            io/file)
-          chooser (doto (new JFileChooser parent)
-                    (.setDialogTitle "save file")
-                    (.setSelectedFile new-file-name))]
-      (if (= (.showSaveDialog chooser root) JFileChooser/APPROVE_OPTION)
-        (str (.getSelectedFile chooser)))))
-
-  (defn crop-pdf [root])
-  )
-
-
-
-;;(-> @state :src (.getName))
+;; crop 
 
 (defn- add-behavior-button [root]
   (->> {:load (fn [e]
@@ -281,4 +207,5 @@
       show!))
 
 ;;(run)
+
 
