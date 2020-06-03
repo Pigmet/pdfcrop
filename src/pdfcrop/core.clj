@@ -151,12 +151,13 @@
 
 ;; FIXME : work on scaling
 
+(defn- src-file-data [{:keys [src]}]
+  (-> src io/file pdf-file-data))
+
 (defn- get-rect-coordinates
   [start end {[w h] :canvas-size src :src}]
   (let [flip-y (fn [[x y]] [x (- h y)])
-        bimage (convert-to-image src 0)
-        w* (.getWidth bimage)
-        h* (.getHeight bimage)
+        {w* :width h* :height} (src-file-data @state)
         start (flip-y start)
         end (flip-y end)
         ratio-x (/ w* w)
