@@ -18,17 +18,18 @@
 
 (defn get-bounding-coordinate
   [^File f]
-  (let [box
-        (-> f (PDDocument/load) (.getPage 0) (.getBBox))]
-    [(.getLowerLeftX box)
-     (.getLowerLeftY box)
-     (.getUpperRightX box)
-     (.getUpperRightY box)]))
+  (with-open [doc (PDDocument/load f)]
+    (let [box (-> doc (.getPage 0) (.getBBox))]
+      [(.getLowerLeftX box)
+       (.getLowerLeftY box)
+       (.getUpperRightX box)
+       (.getUpperRightY box)])))
 
 (defn- get-num-pages
   "Given a pdf file, returns its number of pages."
   [^File f]
-  (-> (PDDocument/load f) (.getNumberOfPages)))
+  (with-open [doc (PDDocument/load f)]    
+    (.getNumberOfPages doc)))
 
 (defn pdf-file-data
   "Takes pdf file (File object), returns its data in a map with
