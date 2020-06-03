@@ -100,7 +100,7 @@
   "Returns the filename (string) selected by the user."
   [root]
   ;; erase the file object from JFileChooser ctor when finished .
-  (let [chooser (doto (new JFileChooser (io/file "resources") )
+  (let [chooser (doto (new JFileChooser) 
                   (.setFileFilter (new-file-filter "pdf")))]
     (when  (-> chooser
                (.showOpenDialog root)
@@ -189,7 +189,7 @@
            [lx ly]
            [rx ry])
           (swap! state assoc :dest (str selected-file))
-          (alert "cropped pdf"))))))
+          )))))
 
 ;; add behavior
 (defn- add-behavior-button [root]
