@@ -62,3 +62,35 @@
     (crop-pdf-impl from out
                    (map * lower-left [w h])
                    (map * upper-right [w h]))))
+
+(defn convert-to-image
+  "Takes filepath and page number and returns BufferedImage."
+  ([src n] (convert-to-image src n 300))
+  ([src n dpi]
+   (with-open [doc (PDDocument/load (io/file src))]
+     (let [renderer (new PDFRenderer doc)]
+       (.renderImageWithDPI renderer n dpi ImageType/RGB)))))
+
+(defn resize-image [im new-width new-height]
+  (let [temp (.getScaledInstance im
+                                 new-width
+                                 new-height
+                                 BufferedImage/SCALE_SMOOTH)
+        ret (buffered-image new-width new-height)
+        g (.createGraphics ret)]
+    (.drawImage g temp 0 0 nil)
+    ret))
+
+(defn bimage-data [^BufferedImage x]
+  {:height (.getHeight x)
+   :width (.getWidth x)})
+
+(defn new-file-filter
+  "Returns new JFileChooser that accept only files with extension."
+  [extension]
+  (proxy [FileFilter] []
+    (accept [file]
+      (or (.isDirectory file)
+          (-> file str (.endsWith (str "." extension)))))
+    (getDescription [] (format "%s files" extension))))
+

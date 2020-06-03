@@ -5,7 +5,9 @@
    [clojure.java.io :as io]
    [clojure.java.shell :refer [sh with-sh-dir]]
    [pdfcrop.helpers :refer [swap-when! file-data]]
-   [pdfcrop.java :refer [crop-pdf-ratio-impl pdf-file-data]])
+   [pdfcrop.java :refer
+    [crop-pdf-impl pdf-file-data resize-image new-file-filter
+     convert-to-image]])
   (:use [seesaw core font color graphics])
   (:import
    (java.io File)
@@ -17,38 +19,7 @@
    (org.apache.pdfbox.rendering PDFRenderer ImageType)
    (org.apache.pdfbox.pdmodel.common PDRectangle)))
 
-;;FIXME: Check scaling. (use original size of the src pdf, not canvas-size?)
-
-(defn convert-to-image
-  "Takes filepath and page number and returns BufferedImage."
-  ([src n] (convert-to-image src n 300))
-  ([src n dpi]
-   (with-open [doc (PDDocument/load (io/file src))]
-     (let [renderer (new PDFRenderer doc)]
-       (.renderImageWithDPI renderer n dpi ImageType/RGB)))))
-
-(defn- resize-image [im new-width new-height]
-  (let [temp (.getScaledInstance im
-                                 new-width
-                                 new-height
-                                 BufferedImage/SCALE_SMOOTH)
-        ret (buffered-image new-width new-height)
-        g (.createGraphics ret)]
-    (.drawImage g temp 0 0 nil)
-    ret))
-
-(defn bimage-data [^BufferedImage x]
-  {:height (.getHeight x)
-   :width (.getWidth x)})
-
-(defn- new-file-filter
-  "Returns new JFileChooser that accept only files with extension."
-  [extension]
-  (proxy [FileFilter] []
-    (accept [file]
-      (or (.isDirectory file)
-          (-> file str (.endsWith (str "." extension)))))
-    (getDescription [] (format "%s files" extension))))
+;;FIXME: Check scaling.
 
 ;; state
 
@@ -146,13 +117,18 @@
          (-> @state :src io/file (.getName))))
 
 (defmethod update-root-id :canvas [root _]
-  (let [{:keys [src page start end]} @state]
+  (let [{:keys [src page start end canvas-size]} @state
+        [w h] canvas-size]
     (when src
       (let [bimage (convert-to-image src page)
-            {w :width h :height} (pdf-file-data (io/file src))
             paint (fn [c g]
                     (.setSize c (new Dimension w h))
-                    (.drawImage g bimage 0 0 nil)
+                    (.drawImage g
+                                (resize-image
+                                 bimage
+                                 w
+                                 h)
+                                0 0 nil)
                     (draw g
                           (apply rect
                                  (concat start (map - end start)) )
@@ -173,10 +149,20 @@
 (defn- put-cropped-filename [s]
   (str (subs s 0 (- (count s) (count ".pdf"))) "-cropped" ".pdf"))
 
-(defn- get-rect-coordinates [start end {[w h] :canvas-size}]
+;; FIXME : work on scaling
+
+(defn- get-rect-coordinates
+  [start end {[w h] :canvas-size src :src}]
   (let [flip-y (fn [[x y]] [x (- h y)])
+        bimage (convert-to-image src 0)
+        w* (.getWidth bimage)
+        h* (.getHeight bimage)
         start (flip-y start)
-        end (flip-y end)]
+        end (flip-y end)
+        ratio-x (/ w* w)
+        ratio-y (/ h* h)
+        start (map * start [ratio-x ratio-y])
+        end (map * end [ratio-x ratio-y])]
     [(apply min (map first [start end]))
      (apply min (map second [start end]))
      (apply max (map first [start end]))
@@ -186,7 +172,6 @@
   (if-not (can-crop? @state)
     (alert "cannnot crop")
     (let [{:keys [src start end canvas-size]} @state
-          [w h] canvas-size
           [lx ly rx ry] (get-rect-coordinates start end @state)
           src-file (io/file src)
           parent (.getParent src-file)
@@ -197,11 +182,11 @@
                     (.setSelectedFile new-file))]
       (if (= (.showSaveDialog chooser root) JFileChooser/APPROVE_OPTION)
         (let [selected-file  (.getSelectedFile chooser)]
-          (crop-pdf-ratio-impl
+          (crop-pdf-impl
            src-file
            selected-file
-           (map / [lx ly] [w h])
-           (map / [rx ry] [w h]))
+           [lx ly]
+           [rx ry])
           (swap! state assoc :dest (str selected-file))
           (alert "cropped pdf"))))))
 
@@ -264,8 +249,3 @@
   [& args]
   (run))
 
-;; demo
-
-(def file-path "/Users/naka/Documents/work/clojure/applications/pdfcrop/resources/The_Art_Of_War.pdf")
-
-(-> file-path io/file pdf-file-data)
